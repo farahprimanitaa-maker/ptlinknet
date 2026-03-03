@@ -20,3 +20,61 @@ FROM basedulu
 GROUP BY ALL
 
 --Section 2.2--
+with basedulu as (SELECT b.servco_id,
+a.region,
+a.homeid,
+b.homeid,
+format_date('%m-%y',b.snapshot_date) as m-y
+case when a.exclusive_flag = 'Y' THEN 'Exc'
+  else 'Non-Exc'
+  end as exclusive_flag_final,
+b.status,
+c.servco_id,
+c.servco_name,
+c.minimum_guarantee,
+c.lease_fee_per_active
+LEFT JOIN `subscription.snapshot.fin` b
+    ON a.homeid = b.homeid
+LEFT JOIN `servco.fin` c
+ON a.homeid = c.homeid),
+
+WITH agg AS (
+SELECT
+    c.servco_id,
+exclusive_flag_final,
+    SUM(c.lease_fee_per_active) AS total_revenue
+FROM basedulu
+GROUP BY ALL
+)
+
+SELECT *,
+    total_revenue / SUM(total_revenue) OVER() AS revenue_contribution
+FROM agg
+
+
+--Section 2.3--
+WITH homepass AS (
+SELECT
+    region,
+    COUNT(DISTINCT homeid) AS total_homepass
+FROM `homepass.fin`
+GROUP BY ALL
+),
+
+active AS (
+SELECT
+    a.region,
+    b.servco_id,
+    COUNT(DISTINCT CASE WHEN b.status = 'ACTIVE' THEN b.homeid END) AS active_ca
+FROM `homepass.fin` a
+LEFT JOIN `subscription.snapshot.fin` b
+    ON a.homeid = b.homeid
+GROUP BY 1,2
+)
+
+SELECT
+    a..servco_id,
+    a.region,
+    active_ca / total_homepass AS penetration_rate
+FROM active a
+JOIN homepass b USING(region)
