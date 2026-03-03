@@ -1,11 +1,22 @@
---2.3 Compare perf--
-SELECT b.servco_id,
+---Section 2.1---
+with basedulu as (SELECT b.servco_id,
 a.region,
 a.homeid,
 b.homeid,
+format_date('%m-%y',b.snapshot_date) as m-y
 case when a.exclusive_flag = 'Y' THEN 'Exc'
   else 'Non-Exc'
   end as exclusive_flag_final,
 b.status,
-from `homepass.fin` a
-cross join `subscription.snapshot.fin` b
+LEFT JOIN `subscription.snapshot.fin` b
+    ON a.homeid = b.homeid)
+
+SELECT
+    b.region
+    b.m-y,
+    b.servco_id,
+    COUNT(DISTINCT CASE WHEN status = 'ACTIVE' THEN homeid END) AS active_ca
+FROM basedulu
+GROUP BY ALL
+
+--Section 2.2--
