@@ -1,0 +1,11 @@
+--2.3 Compare perf--
+SELECT b.servco_id,
+a.region,
+a.homeid,
+b.homeid,
+case when a.exclusive_flag = 'Y' THEN 'Exc'
+  else 'Non-Exc'
+  end as exclusive_flag_final,
+b.status,
+from `homepass.fin` a
+cross join `subscription.snapshot.fin` b
