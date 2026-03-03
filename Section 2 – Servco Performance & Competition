@@ -24,7 +24,7 @@ with basedulu as (SELECT b.servco_id,
 a.region,
 a.homeid,
 b.homeid,
-format_date('%m-%y',b.snapshot_date) as m-y
+format_date('%m-%y',b.snapshot_date) as m-y,
 case when a.exclusive_flag = 'Y' THEN 'Exc'
   else 'Non-Exc'
   end as exclusive_flag_final,
@@ -78,3 +78,84 @@ SELECT
     active_ca / total_homepass AS penetration_rate
 FROM active a
 JOIN homepass b USING(region)
+
+
+--section 2.4--
+WITH agg AS (
+SELECT
+    servco_id,
+    SUM(lease_fee_per_active) AS total_revenue,
+    MAX(minimum_guarantee) AS minimum_guarantee
+FROM basedulu
+WHERE servco_id = 101
+GROUP BY ALL
+)
+
+SELECT *,
+    total_revenue - (minimum_guarantee * lease_fee_per_active OVER()) to AS variance_to_guarantee
+FROM agg
+
+
+---section 2.5---
+with basedulu as (SELECT b.servco_id,
+a.region,
+a.homeid,
+b.homeid,
+format_date('%m-%y',b.snapshot_date) as m-y,
+case when a.exclusive_flag = 'Y' THEN 'Exc'
+  else 'Non-Exc'
+  end as exclusive_flag_final,
+b.status,
+c.servco_id,
+c.servco_name,
+c.minimum_guarantee,
+c.lease_fee_per_active,
+CASE
+    WHEN snapshot_date <= exclusive_end_date THEN 'Exclusive Window'
+    ELSE 'Post Exclusive'
+END
+LEFT JOIN `subscription.snapshot.fin` b
+    ON a.homeid = b.homeid
+LEFT JOIN `servco.fin` c
+ON a.homeid = c.homeid)
+
+SELECT
+    servco_id,
+    format_date('%m-%y',snapshot_date) as m-y,
+    COUNT(DISTINCT CASE WHEN status = 'ACTIVE' THEN homeid END) AS active_ca,
+    SUM(lease_fee_per_active) AS revenue
+FROM basedulu
+GROUP BY ALL
+
+
+---section 2.6---
+with basedulu as (SELECT b.servco_id,
+a.region,
+a.homeid,
+b.homeid,
+format_date('%m-%y',b.snapshot_date) as m-y,
+case when a.exclusive_flag = 'Y' THEN 'Exc'
+  else 'Non-Exc'
+  end as exclusive_flag_final,
+b.status,
+c.servco_id,
+c.servco_name,
+c.minimum_guarantee,
+c.lease_fee_per_active,
+CASE
+    WHEN COUNT(DISTINCT servco_id) 
+         OVER (PARTITION BY status) = 1 
+    THEN 'Single ISP'
+    ELSE 'Multi ISP'
+END AS isp_structure
+LEFT JOIN `subscription.snapshot.fin` b
+    ON a.homeid = b.homeid
+LEFT JOIN `servco.fin` c
+ON a.homeid = c.homeid)
+
+SELECT
+    isp_structure,
+    COUNT(DISTINCT CASE WHEN status = 'ACTIVE' THEN homeid END) AS active_ca,
+    SUM(lease_fee_per_active) AS revenue
+FROM basedulu
+GROUP BY all
